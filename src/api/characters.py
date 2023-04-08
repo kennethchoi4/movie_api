@@ -1,12 +1,19 @@
+from collections import defaultdict
 from fastapi import APIRouter, HTTPException
 from enum import Enum
 from src import database as db
 
 router = APIRouter()
 
+# creating the database object
+data = db.db()
+
+# print the line count for conversation 
+# print(data.conversations['189'].lineCount)
+
 
 @router.get("/characters/{id}", tags=["characters"])
-def get_character(id: str):
+def get_character(id: int):
     """
     This endpoint returns a single character by its identifier. For each character
     it returns:
@@ -26,11 +33,68 @@ def get_character(id: str):
     * `number_of_lines_together`: The number of lines the character has with the
       originally queried character.
     """
-    for character in db.characters:
-        if character["character_id"] == id:
-            print("character found")
-
     json = None
+    # print(data.characters)
+
+
+    # remove this just lookup in the dictionary
+    # if character exists
+    if id in data.characters:
+        print("character found")
+        character = data.characters[id]
+
+        """
+        convo_json strats:
+
+        traverse the conversations
+          for each conversation, we traverse the lines file to calculate the amount of lines & such
+        """
+        
+        convos = defaultdict(int)
+        convosJson = []
+
+        # for the character, traverse through the conversations and add the convo object if the have a convo
+        # sort them based on the conversation lineCount
+        for convo in data.conversations.values():
+            if convo.character1_id == character.character_id:
+                # add the object based on the second character
+                convos[convo.character2_id] += convo.lineCount
+            elif convo.character2_id == character.character_id:
+                convos[convo.character1_id] += convo.lineCount
+        convosSorted = sorted(convos.items(), key=lambda x: x[1], reverse=True)
+
+        # after the list is made, turn them all into json's for the return statement
+        for convo in convosSorted:
+            
+            convoJson = {
+                "character_id": convo[0],
+                "character": data.characters[convo[0]].name,
+                "movie": data.characters[convo[0]].gender,
+                "number_of_lines_together": convo[1]
+            }
+            convosJson.append(convoJson)
+
+        # building the actual character json
+        json = {
+            "character_id": character.character_id,
+            "character": character.name,
+            "movie": data.movies[character.movie_id].title,
+            "gender": character.gender,
+            "top_conversations": convosJson
+          }
+        
+
+        
+
+        
+                
+                
+
+
+            
+
+
+
 
     if json is None:
         raise HTTPException(status_code=404, detail="movie not found.")
@@ -73,5 +137,36 @@ def list_characters(
     number of results to skip before returning results.
     """
 
-    json = None
+    # filter out
+    if name != "":
+      charList = [character for character in data.characters.values() if name.upper() in character.name]
+    else:
+      charList = [character for character in data.characters.values() if character.name is not None]
+        
+    # in order to preprocess the number of lines, I am going to have one pass through the 
+    if sort == character_sort_options.character:
+        charList = sorted(charList, key=lambda x: x.name)
+        
+        
+    elif sort == character_sort_options.movie:
+        charList = sorted(charList, key=lambda x: x.movie)
+
+    elif sort == character_sort_options.number_of_lines:
+        charList = sorted(charList, key=lambda x: x.lines, reverse=True)
+
+    json = []
+
+    # making sure the limit isn't too high
+    if limit > len(charList):
+        limit = len(charList)
+
+
+    for i in range(offset, limit):
+        characterJson = {
+            "character_id": charList[i].character_id,
+            "character": charList[i].name,
+            "movie": data.movies[charList[i].movie_id].title,
+            "number_of_lines": charList[i].lines
+        }
+        json.append(characterJson)
     return json
