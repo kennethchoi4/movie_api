@@ -35,6 +35,20 @@ def test_sort_filter():
     ) as f:
         assert response.json() == json.load(f)
 
+# new personal test
+# characters with a 5 person limit, sorted by name and has a d in the name
+def test_00():
+    response = client.get(
+        "/characters/?name=d&limit=5&offset=0&sort=character"
+    )
+    assert response.status_code == 200
+
+    with open(
+        "test/characters/characters-name=d&limit=5&offset=0&sort=character.json",
+        encoding="utf-8",
+    ) as f:
+        assert response.json() == json.load(f)
+
 
 def test_404():
     response = client.get("/characters/400")

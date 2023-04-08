@@ -93,7 +93,6 @@ def list_movies(
     number of results to skip before returning results.
     """
     # filtering out based on the name 
-    print(name)
     if name != "":
         movList = [movie for movie in data.movies.values() if name in movie.title]
     else:

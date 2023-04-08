@@ -69,7 +69,7 @@ def get_character(id: int):
             convoJson = {
                 "character_id": convo[0],
                 "character": data.characters[convo[0]].name,
-                "movie": data.characters[convo[0]].gender,
+                "gender": data.characters[convo[0]].gender,
                 "number_of_lines_together": convo[1]
             }
             convosJson.append(convoJson)

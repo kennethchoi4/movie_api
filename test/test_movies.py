@@ -33,6 +33,18 @@ def test_sort_filter():
     ) as f:
         assert response.json() == json.load(f)
 
+# testing sorting with with movies with the word fast 
+# only 5 of them sorted by title
+def test_01():
+    response= client.get("/movies/?name=man&limit=5&offset=0&sort=movie_title")
+    assert response.status_code == 200
+
+    with open(
+        "test/movies/movies-name=man&limit=5&offset=0&sort=movie_title.json",
+        encoding="utf-8",
+    ) as f:
+        assert response.json() == json.load(f)
+
 
 def test_404():
     response = client.get("/movies/1")

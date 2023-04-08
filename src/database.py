@@ -92,7 +92,7 @@ class db:
 
 
 
-print("reading movies")
+#print("reading movies")
 
 # print(db.movies[0].movie_id)
 # print(db.movies[0].title)
