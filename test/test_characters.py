@@ -49,6 +49,13 @@ def test_00():
     ) as f:
         assert response.json() == json.load(f)
 
+# character id = 6519 (best character name)
+def test_01():
+    response = client.get("/characters/6519")
+    assert response.status_code == 200
+
+    with open("test/characters/6519.json", encoding="utf-8") as f:
+        assert response.json() == json.load(f)
 
 def test_404():
     response = client.get("/characters/400")
