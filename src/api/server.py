@@ -19,7 +19,10 @@ You can:
 ## Lines
 
 You can: 
-* **list lines of a conversation based on conversation id
+* **list lines of a conversation.**
+* **retrieve information on a character and its conversations**
+* **list conversations with sorting and filterting options.**
+
 """
 tags_metadata = [
     {
