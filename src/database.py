@@ -6,7 +6,7 @@ import csv
 
 class movie:
 
-    def __init__(self, movie_id: int, title: str, year: str, imdb_rating: float, imdb_votes: int, raw_script_url: str):
+    def __init__(self, movie_id: int, title: str, year: int, imdb_rating: float, imdb_votes: int, raw_script_url: str):
         self.movie_id  = movie_id
         self.title = title
         self.year = year
@@ -32,6 +32,8 @@ class conversation:
         self.character2_id = character2_id
         self.movie_id = movie_id
         self.lineCount = 0      # line count is initially zero to be added later
+        self.character1_lines = 0
+        self.character2_lines = 0
 
 class line:
 
@@ -43,82 +45,52 @@ class line:
         self.line_sort = line_sort
         self.line_text = line_text
 
+# different than (val or None) because if val = 0, it would return None
+def typeCheck(type, val):
+    try: 
+        return type(val)
+    except ValueError:
+        return None
+
 class db:
     
 
     lines = {}
     with open("lines.csv", mode="r", encoding="utf8") as csv_file:
         for row in csv.DictReader(csv_file, skipinitialspace=True):
-            cur = line(int(row['line_id']), int(row['character_id']), int(row['movie_id']), int(row['conversation_id']), int(row['line_sort']), str(row['line_text']))
+            cur = line(typeCheck(int, row['line_id']), typeCheck(int,row['character_id']), typeCheck(int, row['movie_id']), typeCheck(int, row['conversation_id']), typeCheck(int, row['line_sort']), str(row['line_text']))
             lines[cur.line_id] = cur
 
     conversations = {}
     with open("conversations.csv", mode="r", encoding="utf8") as csv_file:
         for row in csv.DictReader(csv_file, skipinitialspace=True):
-            cur = conversation(int(row['conversation_id']), int(row['character1_id']), int(row['character2_id']), int(row['movie_id']))
+            cur = conversation(typeCheck(int, row['conversation_id']), typeCheck(int, row['character1_id']), typeCheck(int, row['character2_id']), typeCheck(int, row['movie_id']))
             conversations[cur.conversation_id] = cur
 
     movies = {}
     with open("movies.csv", mode="r", encoding="utf8") as csv_file:
         for row in csv.DictReader(csv_file, skipinitialspace=True):
-            cur = movie(int(row['movie_id']), str(row['title']), str(row['year']), float(row['imdb_rating']), int(row['imdb_votes']), str(row['raw_script_url']))
+            cur = movie(typeCheck(int, row['movie_id']), str(row['title']), str(row['year']), typeCheck(float, row['imdb_rating']), typeCheck(int, row['imdb_votes']), str(row['raw_script_url']))
             movies[cur.movie_id] = cur
 
     characters = {}
+    charNames = {}
     with open("characters.csv", mode="r", encoding="utf8") as csv_file:
         for row in csv.DictReader(csv_file, skipinitialspace=True):
-            cur = character(int(row['character_id']), str(row['name']), int(row['movie_id']), str(row['gender']), str(row['age']))
+            cur = character(typeCheck(int, row['character_id']), str(row['name']), typeCheck(int, row['movie_id']), str(row['gender']), str(row['age']))
             characters[cur.character_id] = cur
+            charNames[cur.name] = cur.character_id
 
     # calculating line count 
     for line in lines.values():
 
         # adding the conversation count
         conversations[line.conversation_id].lineCount += 1
+        
+        if line.character_id == conversations[line.conversation_id].character1_id:
+            conversations[line.conversation_id].character1_lines += 1
+        else:
+            conversations[line.conversation_id].character2_lines += 1
 
         # adding the lines per character
         characters[line.character_id].lines += 1
-
-
-
-
-
-    
-    
-    
-    
-    
-        
-
-
-
-#print("reading movies")
-
-# print(db.movies[0].movie_id)
-# print(db.movies[0].title)
-
-# with open("movies.csv", mode="r", encoding="utf8") as csv_file:
-#     movies = [
-#         {k: v for k, v in row.items()}
-#         for row in csv.DictReader(csv_file, skipinitialspace=True)
-#     ]
-
-
-# with open("characters.csv", mode="r", encoding="utf8") as csv_file:
-#     characters = [
-#         {k: v for k, v in row.items()}
-#         for row in csv.DictReader(csv_file, skipinitialspace=True)
-#     ]
-
-# with open("conversations.csv", mode="r", encoding="utf8") as csv_file:
-#     conversations = [
-#         {k: v for k, v in row.items()}
-#         for row in csv.DictReader(csv_file, skipinitialspace=True)
-#     ]
-
-# with open("lines.csv", mode="r", encoding="utf8") as csv_file:
-#     lines = [
-#         {k: v for k, v in row.items()}
-#         for row in csv.DictReader(csv_file, skipinitialspace=True)
-#     ]
-

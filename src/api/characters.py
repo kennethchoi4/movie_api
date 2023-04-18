@@ -161,12 +161,21 @@ def list_characters(
         limit = len(charList)
 
 
-    for i in range(offset, limit):
+    for character in charList[offset: offset + limit]:
         characterJson = {
-            "character_id": charList[i].character_id,
-            "character": charList[i].name,
-            "movie": data.movies[charList[i].movie_id].title,
-            "number_of_lines": charList[i].lines
+            "character_id": character.character_id,
+            "character": character.name,
+            "movie": data.movies[character.movie_id].title,
+            "number_of_lines": character.lines
         }
         json.append(characterJson)
+
+    # for i in range(offset, offset + limit):
+    #     characterJson = {
+    #         "character_id": charList[i].character_id,
+    #         "character": charList[i].name,
+    #         "movie": data.movies[charList[i].movie_id].title,
+    #         "number_of_lines": charList[i].lines
+    #     }
+    #     json.append(characterJson)
     return json

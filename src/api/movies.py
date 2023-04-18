@@ -110,15 +110,25 @@ def list_movies(
     if limit > len(movList):
         limit = len(movList)
 
-    for i in range(offset, limit):
+    for movie in movList[offset:offset + limit]:
         movieJson = {
-            "movie_id": movList[i].movie_id,
-            "movie_title": movList[i].title, 
-            "year": movList[i].year,
-            "imdb_rating": movList[i].imdb_rating,
-            "imdb_votes": movList[i].imdb_votes
+            "movie_id": movie.movie_id,
+            "movie_title": movie.title, 
+            "year": movie.year,
+            "imdb_rating": movie.imdb_rating,
+            "imdb_votes": movie.imdb_votes
         }
         json.append(movieJson)
+
+    # for i in range(offset, offset + limit):
+    #     movieJson = {
+    #         "movie_id": movList[i].movie_id,
+    #         "movie_title": movList[i].title, 
+    #         "year": movList[i].year,
+    #         "imdb_rating": movList[i].imdb_rating,
+    #         "imdb_votes": movList[i].imdb_votes
+    #     }
+    #     json.append(movieJson)
 
 
     return json
