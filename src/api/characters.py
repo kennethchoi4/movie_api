@@ -1,6 +1,9 @@
 from collections import defaultdict
 from fastapi import APIRouter, HTTPException
 from enum import Enum
+from collections import Counter
+
+from fastapi.params import Query
 from src import database as db
 
 router = APIRouter()
@@ -10,6 +13,23 @@ data = db.db()
 
 # print the line count for conversation 
 # print(data.conversations['189'].lineCount)
+
+
+def get_top_conv_characters(character):
+    c_id = character.id
+    movie_id = character.movie_id
+    all_convs = filter(
+        lambda conv: conv.movie_id == movie_id
+        and (conv.c1_id == c_id or conv.c2_id == c_id),
+        db.conversations.values(),
+    )
+    line_counts = Counter()
+
+    for conv in all_convs:
+        other_id = conv.c2_id if conv.c1_id == c_id else conv.c1_id
+        line_counts[other_id] += conv.num_lines
+
+    return line_counts.most_common()
 
 
 @router.get("/characters/{id}", tags=["characters"])
@@ -82,23 +102,8 @@ def get_character(id: int):
             "gender": character.gender,
             "top_conversations": convosJson
           }
-        
-
-        
-
-        
-                
-                
-
-
-            
-
-
-
-
     if json is None:
-        raise HTTPException(status_code=404, detail="movie not found.")
-
+        raise HTTPException(status_code=404, detail="character not found.")
     return json
 
 
@@ -111,8 +116,8 @@ class character_sort_options(str, Enum):
 @router.get("/characters/", tags=["characters"])
 def list_characters(
     name: str = "",
-    limit: int = 50,
-    offset: int = 0,
+    limit: int = Query(50, ge=1, le=250),
+    offset: int = Query(0, ge=0),
     sort: character_sort_options = character_sort_options.character,
 ):
     """
