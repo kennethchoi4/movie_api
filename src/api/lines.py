@@ -119,7 +119,7 @@ class conversation_sort_options(str, Enum):
     title = "title"
     conversation_id = "conversation_id"
 
-@router.get("/lines/", tags=["lines"])
+@router.get("/lines/conversations/", tags=["lines"])
 def list_conversations(
     count: Optional[int] = None,
     limit: int = 50,
