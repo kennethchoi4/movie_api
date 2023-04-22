@@ -11,27 +11,6 @@ router = APIRouter()
 # creating the database object
 data = db.db()
 
-# print the line count for conversation 
-# print(data.conversations['189'].lineCount)
-
-
-def get_top_conv_characters(character):
-    c_id = character.id
-    movie_id = character.movie_id
-    all_convs = filter(
-        lambda conv: conv.movie_id == movie_id
-        and (conv.c1_id == c_id or conv.c2_id == c_id),
-        db.conversations.values(),
-    )
-    line_counts = Counter()
-
-    for conv in all_convs:
-        other_id = conv.c2_id if conv.c1_id == c_id else conv.c1_id
-        line_counts[other_id] += conv.num_lines
-
-    return line_counts.most_common()
-
-
 @router.get("/characters/{id}", tags=["characters"])
 def get_character(id: int):
     """

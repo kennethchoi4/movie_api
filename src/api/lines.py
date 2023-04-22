@@ -19,12 +19,12 @@ write out the first line of each conversation character is part of (searched by 
 def get_lines(conversation_id: int):
     """
     This endpoint returns the lines of a conversation based on its id. For each conversation, the endpoint returns
-    * 'conversation_id': the conversation id
-    * 'title': the title of the movie
-    * 'lines': a list of lines in the given conversation, sorted in order of the conversation
+    * 'conversation_id': the conversation id of your desired conversation
+    * 'title': the title of the movie the conversation is from
+    * 'lines': a list of lines in the given conversation, sorted in order of line_sort
     
     Each line is represented with the following keys
-    * 'name': the name of the character
+    * 'name': the name of the character who said the line
     * 'line_text': the text of the line
     
     """
@@ -57,58 +57,62 @@ def get_lines(conversation_id: int):
 @router.get("/lines/names/{name}", tags=["lines"])
 def get_character_convos(name: str):
     """
-    This endpoint returns a character conversation identifier. For each character it returns:
-    * 'name': character name.
+    This endpoint returns a list of characters that match the given name. For each character, the endpoint returns:
+    * 'name': The character's name
     * 'character_id': character id 
     * 'conversation count': amount of conversations the character is in
-    * 'conversations':
+    * 'conversations': a list of conversations the character is in, sorted by conversation id
 
-    Each conversation is represented by a dictionary with the following keys:
-    * 'title': movie title
-    * 'line_count': character's line count in the conversation
-    * 'other_charcter': character they are talking to 
+    Each conversation identifier is represented by a dictionary with the following keys:
+    * 'title': Movie title the character is in
+    * 'line_count': how many lines the character had in the conversation
+    * 'other_charcter': the name of the other character they are talking to
     """
-    json = None
+    jsons = []
+
+    name = name.upper()     # turn the name into all caps in order to match the datab
 
     if name in data.charNames:
-        id = data.charNames[name]
-        convos = [] #[convo for convo in data.conversations.values() if convo.character1_id == id or convo.character2_id == id]
+        for id in data.charNames[name]:
+            convos = [] #[convo for convo in data.conversations.values() if convo.character1_id == id or convo.character2_id == id]
 
-        # convo to keep only one of each conversation
-        c = {}
-        for convo in data.conversations.values():
-            if (convo.character1_id == id or convo.character2_id == id) and convo.conversation_id not in c:
-                convos.append(convo)
-        
-        convos = sorted(convos, key=lambda x: x.conversation_id)
+            # convo to keep only one of each conversation
+            c = {}
+            for convo in data.conversations.values():
+                if (convo.character1_id == id or convo.character2_id == id) and convo.conversation_id not in c:
+                    convos.append(convo)
+            
+            convos = sorted(convos, key=lambda x: x.conversation_id)
 
-        convosJson = []
+            convosJson = []
 
-        for convo in convos:
-            if id == convo.character1_id:
-                count = convo.character1_lines
-                other = data.characters[convo.character2_id].name
-            else:
-                count = convo.character2_lines
-                other = data.characters[convo.character1_id].name
+            for convo in convos:
+                if id == convo.character1_id:
+                    count = convo.character1_lines
+                    other = data.characters[convo.character2_id].name
+                else:
+                    count = convo.character2_lines
+                    other = data.characters[convo.character1_id].name
 
-            convosJson.append({
-                "title": data.movies[convo.movie_id].title,
-                "line_count": count,
-                "other_character": other
-            }) 
+                convosJson.append({
+                    "title": data.movies[convo.movie_id].title,
+                    "line_count": count,
+                    "other_character": other
+                }) 
 
-        json ={
-            "name": name,
-            "character_id": id,
-            "conversation_count": len(convos),
-            "conversations": convosJson
-        }   
+            json ={
+                "name": name,
+                "character_id": id,
+                "conversation_count": len(convos),
+                "conversations": convosJson
+            }
+            jsons.append(json)
     
-    if json is None:
+    # this means that the name was not found
+    if jsons == []:
         raise HTTPException(status_code=404, detail="character not found.")
 
-    return json
+    return jsons
 
 class conversation_sort_options(str, Enum):
     line_count = "line_count"

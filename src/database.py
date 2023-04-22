@@ -1,5 +1,6 @@
+from collections import defaultdict
 import csv
-from src.datatypes import Character, Movie, Conversation, Line
+#from src.datatypes import Character, Movie, Conversation, Line
 import os
 import io
 from supabase import Client, create_client
@@ -23,6 +24,7 @@ sess = supabase.auth.get_session()
 # You should delete this code for your working example.
 
 # START PLACEHOLDER CODE
+
 
 # Reading in the log file from the supabase bucket
 log_csv = (
@@ -130,12 +132,12 @@ class db:
             movies[cur.movie_id] = cur
 
     characters = {}
-    charNames = {}
+    charNames = defaultdict(list)
     with open("characters.csv", mode="r", encoding="utf8") as csv_file:
         for row in csv.DictReader(csv_file, skipinitialspace=True):
             cur = character(typeCheck(int, row['character_id']), str(row['name']), typeCheck(int, row['movie_id']), str(row['gender']), str(row['age']))
             characters[cur.character_id] = cur
-            charNames[cur.name] = cur.character_id
+            charNames[cur.name].append(cur.character_id)
 
     # calculating line count 
     for line in lines.values():

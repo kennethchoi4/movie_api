@@ -25,6 +25,7 @@ def test_list_conversations0():
     assert response.status_code == 200
 
     with open("test/lines/FERRARI.json") as f:
+        print(response.json())
         assert response.json() == json.load(f)
 
 def test_list_conversations1():
@@ -32,6 +33,20 @@ def test_list_conversations1():
     assert response.status_code == 200
 
     with open("test/lines/KEN.json") as f:
+        assert response.json() == json.load(f)
+
+def test_list_conversations2():
+    response = client.get("/lines/names/BIANCA")
+    assert response.status_code == 200
+
+    with open("test/lines/BIANCA.json") as f:
+        assert response.json() == json.load(f)
+
+def test_list_conversations3():
+    response = client.get("/lines/names/bianca")
+    assert response.status_code == 200
+
+    with open("test/lines/bianca.json") as f:
         assert response.json() == json.load(f)
 
 def test_lines0():

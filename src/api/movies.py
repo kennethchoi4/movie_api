@@ -48,10 +48,10 @@ def get_movie(movie_id: int):
             "title": data.movies[movie_id].title,
             "top_characters": charsList
         }
-    
+    if json is None:
+        raise HTTPException(status_code=404, detail="movie not found.")
 
-    raise HTTPException(status_code=404, detail="movie not found.")
-
+    return json
 
 class movie_sort_options(str, Enum):
     movie_title = "movie_title"
