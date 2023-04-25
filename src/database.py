@@ -52,6 +52,45 @@ def upload_new_log():
         {"x-upsert": "true"},
     )
 
+# Writing to the lines file and uploading to the supabase bucket
+
+def upload_new_lines():
+    output = io.StringIO()
+    csv_writer = csv.DictWriter(
+        output, fieldnames=["line_id", "character_id", "movie_id", "conversation_id", "line_sort", "line_text"]
+    )
+    csv_writer.writeheader()
+    linesList = []
+    for cur in lines.values():
+        cur = vars(cur)
+        linesList.append(cur)
+    linesList = sorted(linesList, key=lambda x: x["line_id"])
+    csv_writer.writerows(linesList)
+    supabase.storage.from_("movie-api").upload(
+        "lines.csv",
+        bytes(output.getvalue(), "utf-8"),
+        {"x-upsert": "true"},
+    )
+
+# Writing to the conversations file and uploading to the supabase bucket
+
+def upload_new_conversations():
+    output = io.StringIO()
+    csv_writer = csv.DictWriter(
+        output, fieldnames=["conversation_id", "character1_id", "character2_id", "movie_id"]
+    )
+    csv_writer.writeheader()
+    conversationsList = []
+    for cur in conversations.values():
+        curConvo = {"conversation_id": cur.conversation_id, "character1_id": cur.character1_id, "character2_id": cur.character2_id, "movie_id": cur.movie_id}
+        conversationsList.append(curConvo)
+    conversationsList = sorted(conversationsList, key=lambda x: x["conversation_id"])
+    csv_writer.writerows(conversationsList)
+    supabase.storage.from_("movie-api").upload(
+        "conversations.csv",
+        bytes(output.getvalue(), "utf-8"),
+        {"x-upsert": "true"},
+    )
 
 # END PLACEHOLDER CODE
 
@@ -81,6 +120,8 @@ class character:
         self.gender = (gender or None)
         self.age = age
         self.lines = 0      # integer to count the amount of lines within the movie
+    
+
 
 class conversation:
 
@@ -110,45 +151,70 @@ def typeCheck(type, val):
     except ValueError:
         return None
 
-class db:
+
+lines_csv = (
+supabase.storage.from_("movie-api")
+.download("lines.csv")
+.decode("utf-8")
+)
+
+lines = {}
+lineId = float("-inf") # negative infinity float used to add the lines to the end of the file everytime (allows for easier visuals)
+
+# -- local file traversal --
+# with open("lines.csv", mode="r", encoding="utf8") as csv_file:
+#     for row in csv.DictReader(csv_file, skipinitialspace=True):
+#         cur = line(typeCheck(int, row['line_id']), typeCheck(int,row['character_id']), typeCheck(int, row['movie_id']), typeCheck(int, row['conversation_id']), typeCheck(int, row['line_sort']), str(row['line_text']))
+#         lines[cur.line_id] = cur
+for row in csv.DictReader(io.StringIO(lines_csv), skipinitialspace=True):
+    cur = line(typeCheck(int, row['line_id']), typeCheck(int,row['character_id']), typeCheck(int, row['movie_id']), typeCheck(int, row['conversation_id']), typeCheck(int, row['line_sort']), str(row['line_text']))
+    lines[cur.line_id] = cur
+    lineId = max(lineId, cur.line_id)
+
+conversations_csv = (
+supabase.storage.from_("movie-api")
+.download("conversations.csv")
+.decode("utf-8")
+)
+
+conversations = {}
+conversationId = float("-inf") # negative infinity float used to add the conversations to the end of the file everytime (allows for easier visuals)
+# -- local file traversal --
+# with open("conversations.csv", mode="r", encoding="utf8") as csv_file:
+#     for row in csv.DictReader(csv_file, skipinitialspace=True):
+#         cur = conversation(typeCheck(int, row['conversation_id']), typeCheck(int, row['character1_id']), typeCheck(int, row['character2_id']), typeCheck(int, row['movie_id']))
+#         conversations[cur.conversation_id] = cur
+
+for row in csv.DictReader(io.StringIO(conversations_csv), skipinitialspace=True):
+    cur = conversation(typeCheck(int, row['conversation_id']), typeCheck(int, row['character1_id']), typeCheck(int, row['character2_id']), typeCheck(int, row['movie_id']))
+    conversations[cur.conversation_id] = cur
+    conversationId = max(conversationId, cur.conversation_id)
+
+print(conversationId)
+movies = {}
+with open("movies.csv", mode="r", encoding="utf8") as csv_file:
+    for row in csv.DictReader(csv_file, skipinitialspace=True):
+        cur = movie(typeCheck(int, row['movie_id']), str(row['title']), str(row['year']), typeCheck(float, row['imdb_rating']), typeCheck(int, row['imdb_votes']), str(row['raw_script_url']))
+        movies[cur.movie_id] = cur
+
+characters = {}
+charNames = defaultdict(list)
+with open("characters.csv", mode="r", encoding="utf8") as csv_file:
+    for row in csv.DictReader(csv_file, skipinitialspace=True):
+        cur = character(typeCheck(int, row['character_id']), str(row['name']), typeCheck(int, row['movie_id']), str(row['gender']), typeCheck(int, row['age']))
+        characters[cur.character_id] = cur
+        charNames[cur.name].append(cur.character_id)
+
+# calculating line count 
+for l in lines.values():
+
+    # adding the conversation count
+    conversations[l.conversation_id].lineCount += 1
     
+    if l.character_id == conversations[l.conversation_id].character1_id:
+        conversations[l.conversation_id].character1_lines += 1
+    else:
+        conversations[l.conversation_id].character2_lines += 1
 
-    lines = {}
-    with open("lines.csv", mode="r", encoding="utf8") as csv_file:
-        for row in csv.DictReader(csv_file, skipinitialspace=True):
-            cur = line(typeCheck(int, row['line_id']), typeCheck(int,row['character_id']), typeCheck(int, row['movie_id']), typeCheck(int, row['conversation_id']), typeCheck(int, row['line_sort']), str(row['line_text']))
-            lines[cur.line_id] = cur
-
-    conversations = {}
-    with open("conversations.csv", mode="r", encoding="utf8") as csv_file:
-        for row in csv.DictReader(csv_file, skipinitialspace=True):
-            cur = conversation(typeCheck(int, row['conversation_id']), typeCheck(int, row['character1_id']), typeCheck(int, row['character2_id']), typeCheck(int, row['movie_id']))
-            conversations[cur.conversation_id] = cur
-
-    movies = {}
-    with open("movies.csv", mode="r", encoding="utf8") as csv_file:
-        for row in csv.DictReader(csv_file, skipinitialspace=True):
-            cur = movie(typeCheck(int, row['movie_id']), str(row['title']), str(row['year']), typeCheck(float, row['imdb_rating']), typeCheck(int, row['imdb_votes']), str(row['raw_script_url']))
-            movies[cur.movie_id] = cur
-
-    characters = {}
-    charNames = defaultdict(list)
-    with open("characters.csv", mode="r", encoding="utf8") as csv_file:
-        for row in csv.DictReader(csv_file, skipinitialspace=True):
-            cur = character(typeCheck(int, row['character_id']), str(row['name']), typeCheck(int, row['movie_id']), str(row['gender']), str(row['age']))
-            characters[cur.character_id] = cur
-            charNames[cur.name].append(cur.character_id)
-
-    # calculating line count 
-    for line in lines.values():
-
-        # adding the conversation count
-        conversations[line.conversation_id].lineCount += 1
-        
-        if line.character_id == conversations[line.conversation_id].character1_id:
-            conversations[line.conversation_id].character1_lines += 1
-        else:
-            conversations[line.conversation_id].character2_lines += 1
-
-        # adding the lines per character
-        characters[line.character_id].lines += 1
+    # adding the lines per character
+    characters[l.character_id].lines += 1

@@ -8,8 +8,6 @@ from src import database as db
 
 router = APIRouter()
 
-# creating the database object
-data = db.db()
 
 @router.get("/characters/{id}", tags=["characters"])
 def get_character(id: int):
@@ -38,9 +36,9 @@ def get_character(id: int):
 
     # remove this just lookup in the dictionary
     # if character exists
-    if id in data.characters:
+    if id in db.characters:
         print("character found")
-        character = data.characters[id]
+        character = db.characters[id]
 
         """
         convo_json strats:
@@ -54,7 +52,7 @@ def get_character(id: int):
 
         # for the character, traverse through the conversations and add the convo object if the have a convo
         # sort them based on the conversation lineCount
-        for convo in data.conversations.values():
+        for convo in db.conversations.values():
             if convo.character1_id == character.character_id:
                 # add the object based on the second character
                 convos[convo.character2_id] += convo.lineCount
@@ -67,8 +65,8 @@ def get_character(id: int):
             
             convoJson = {
                 "character_id": convo[0],
-                "character": data.characters[convo[0]].name,
-                "gender": data.characters[convo[0]].gender,
+                "character": db.characters[convo[0]].name,
+                "gender": db.characters[convo[0]].gender,
                 "number_of_lines_together": convo[1]
             }
             convosJson.append(convoJson)
@@ -77,7 +75,7 @@ def get_character(id: int):
         json = {
             "character_id": character.character_id,
             "character": character.name,
-            "movie": data.movies[character.movie_id].title,
+            "movie": db.movies[character.movie_id].title,
             "gender": character.gender,
             "top_conversations": convosJson
           }
@@ -123,9 +121,9 @@ def list_characters(
 
     # filter out
     if name != "":
-      charList = [character for character in data.characters.values() if name.upper() in character.name]
+      charList = [character for character in db.characters.values() if name.upper() in character.name]
     else:
-      charList = [character for character in data.characters.values() if character.name is not None]
+      charList = [character for character in db.characters.values() if character.name is not None]
         
     # in order to preprocess the number of lines, I am going to have one pass through the 
     if sort == character_sort_options.character:
@@ -149,7 +147,7 @@ def list_characters(
         characterJson = {
             "character_id": character.character_id,
             "character": character.name,
-            "movie": data.movies[character.movie_id].title,
+            "movie": db.movies[character.movie_id].title,
             "number_of_lines": character.lines
         }
         json.append(characterJson)

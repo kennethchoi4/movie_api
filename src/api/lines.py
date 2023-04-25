@@ -5,8 +5,6 @@ from typing import *
 
 router = APIRouter()
 
-# creating the database object 
-data = db.db()
 
 """
 functions for lines.py
@@ -31,9 +29,9 @@ def get_lines(conversation_id: int):
 
     json = None
 
-    if conversation_id in data.conversations:
+    if conversation_id in db.conversations:
 
-        lines = [(line, data.characters[line.character_id].name) for line in data.lines.values() if conversation_id == line.conversation_id]
+        lines = [(line, db.characters[line.character_id].name) for line in db.lines.values() if conversation_id == line.conversation_id]
 
         # sort for outputting
         lines = sorted(lines, key=lambda x: x[0].line_sort)
@@ -45,7 +43,7 @@ def get_lines(conversation_id: int):
 
         json = {
             "conversation_id": conversation_id,
-            "title": data.movies[data.conversations[conversation_id].movie_id].title,
+            "title": db.movies[db.conversations[conversation_id].movie_id].title,
             "lines": lineJson
         }
 
@@ -72,13 +70,13 @@ def get_character_convos(name: str):
 
     name = name.upper()     # turn the name into all caps in order to match the datab
 
-    if name in data.charNames:
-        for id in data.charNames[name]:
+    if name in db.charNames:
+        for id in db.charNames[name]:
             convos = [] #[convo for convo in data.conversations.values() if convo.character1_id == id or convo.character2_id == id]
 
             # convo to keep only one of each conversation
             c = {}
-            for convo in data.conversations.values():
+            for convo in db.conversations.values():
                 if (convo.character1_id == id or convo.character2_id == id) and convo.conversation_id not in c:
                     convos.append(convo)
             
@@ -89,13 +87,13 @@ def get_character_convos(name: str):
             for convo in convos:
                 if id == convo.character1_id:
                     count = convo.character1_lines
-                    other = data.characters[convo.character2_id].name
+                    other = db.characters[convo.character2_id].name
                 else:
                     count = convo.character2_lines
-                    other = data.characters[convo.character1_id].name
+                    other = db.characters[convo.character1_id].name
 
                 convosJson.append({
-                    "title": data.movies[convo.movie_id].title,
+                    "title": db.movies[convo.movie_id].title,
                     "line_count": count,
                     "other_character": other
                 }) 
@@ -144,14 +142,14 @@ def list_conversations(
     """
 
     if count:
-        convos = [convo for convo in data.conversations.values() if convo.lineCount >= count]
+        convos = [convo for convo in db.conversations.values() if convo.lineCount >= count]
     else:
-        convos = [convo for convo in data.conversations.values()]
+        convos = [convo for convo in db.conversations.values()]
 
     if sort == conversation_sort_options.line_count:
         convos = sorted(convos, key=lambda x: x.lineCount, reverse=True)
     elif sort == conversation_sort_options.title:
-        convos = sorted(convos, key = lambda x: data.movies[x.movie_id].title)
+        convos = sorted(convos, key = lambda x: db.movies[x.movie_id].title)
     elif sort == conversation_sort_options.conversation_id:
         convos = sorted(convos, key=lambda x: x.conversation_id)
 
@@ -160,11 +158,12 @@ def list_conversations(
     # TODO: make sure it doesn't go more than the list
 
     for convo in convos[offset:offset + limit]:
+        print(vars(convo))
         convoJson = {
             "conversation_id": convo.conversation_id,
-            "title": data.movies[convo.movie_id].title,
-            "character1": data.characters[convo.character1_id].name,
-            "character2": data.characters[convo.character2_id].name,
+            "title": db.movies[convo.movie_id].title,
+            "character1": db.characters[convo.character1_id].name,
+            "character2": db.characters[convo.character2_id].name,
             "line_count": convo.lineCount
         }
         json.append(convoJson)

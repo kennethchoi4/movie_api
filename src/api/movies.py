@@ -5,7 +5,7 @@ from fastapi.params import Query
 
 router = APIRouter()
 
-data = db.db()
+
 
 @router.get("/movies/{movie_id}", tags=["movies"])
 def get_movie(movie_id: int):
@@ -25,10 +25,10 @@ def get_movie(movie_id: int):
     """
 
     json = None
-    if movie_id in data.movies:
+    if movie_id in db.movies:
         chars = []
         
-        for character in data.characters.values():
+        for character in db.characters.values():
             if character.movie_id == movie_id:
                 chars.append(character)
     
@@ -45,7 +45,7 @@ def get_movie(movie_id: int):
             charsList.append(curJson)
         json = {
             "movie_id": movie_id,
-            "title": data.movies[movie_id].title,
+            "title": db.movies[movie_id].title,
             "top_characters": charsList
         }
     if json is None:
@@ -91,9 +91,9 @@ def list_movies(
     """
     # filtering out based on the name 
     if name != "":
-        movList = [movie for movie in data.movies.values() if name in movie.title]
+        movList = [movie for movie in db.movies.values() if name in movie.title]
     else:
-        movList = [movie for movie in data.movies.values() if movie.title is not None]
+        movList = [movie for movie in db.movies.values() if movie.title is not None]
 
     if sort == movie_sort_options.movie_title:
         movList = sorted(movList, key=lambda x: x.title)
