@@ -36,6 +36,17 @@ def add_conversation(movie_id: int, conversation: ConversationJson):
     request body.
 
     The endpoint returns the id of the resulting conversation that was created.
+
+    Limitations:
+        1. if someone performs a GET request while information from a POST request were being added to the database from another call, they will not be able to access the data as it is being added
+        2. If two POST requests are being processed at the same time, a race condition can occur for attributes such as 'character1_lines' due to the fact that two proceses are trying to modify the attribute at the same time. This will of course end up in inaccurate data
+            - this can also occur in terms of the line id as the lines could be out of order and not near other lines of the same conversation
+        3. As a result of a race condition, duplicate lines/ conversations can be added to the database
+        4. Besides a race condition, there is the limitation of users being able to add the same conversation twice
+            - this api does not evaluate whether or not the conversation already exists in the database
+        5. A race condition can not only prevent there from being accurate data being displayed, but it can also cause errors such as finding a certain conversation based off its id
+            - if the id isn't created yet, then it wont be accessed, causing an error and resulting in the pending api request to fail out
+
     """
 
     # TODO:
