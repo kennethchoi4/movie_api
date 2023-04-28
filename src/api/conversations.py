@@ -104,3 +104,6 @@ def add_conversation(movie_id: int, conversation: ConversationJson):
 
     # db.logs.append({"post_call_time": datetime.now(), "movie_id_added_to": movie_id})
     # db.upload_new_log()
+
+    # rerturns conversation id
+    return newConvo.conversation_id
