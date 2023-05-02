@@ -2,6 +2,7 @@ from collections import defaultdict
 from fastapi import APIRouter, HTTPException
 from enum import Enum
 from collections import Counter
+from sqlalchemy import *
 
 from fastapi.params import Query
 from src import database as db
@@ -30,6 +31,37 @@ def get_character(id: int):
     * `number_of_lines_together`: The number of lines the character has with the
       originally queried character.
     """
+
+    # TODO: Implement the endpoint using sql 
+    # for conversations
+        # query to get all the conversations the character is part of 
+
+    json = None
+    with db.engine.connect() as conn:
+        character = conn.execute(text("SELECT * FROM characters WHERE character_id = :id"), {"id":id}).fetchone()
+        if character:
+            convos = conn.execute(text("SELECT char.character_id, char.name, char.gender, mov.title, SUM(c.line_count) as count FROM (SELECT c.conversation_id, c.movie_id, CASE WHEN c.character1_id = :id THEN c.character2_id ELSE c.character1_id END AS other_character_id, COUNT(l.line_id) AS line_count FROM conversations AS c JOIN lines AS l on c.conversation_id = l.conversation_id WHERE (c.character1_id = :id OR c.character2_id = :id) AND (c.character1_id != :id OR c.character2_id != :id) GROUP BY c.conversation_id, c.movie_id, other_character_id) AS c JOIN characters AS char ON c.other_character_id = char.character_id JOIN movies AS mov on c.movie_id = mov.movie_id GROUP BY char.character_id, char.name, char.gender, mov.title ORDER BY SUM(c.line_count) DESC"), {"id": id}).fetchall()
+            cJson = []
+            for convo in convos:
+                cur = {
+                    "character_id": convo.character_id,
+                    "character": convo.name,
+                    "gender": convo.gender,
+                    "number_of_lines_together": convo.count
+                }
+                cJson.append(cur)
+
+            json = {
+                "character_id": character.character_id,
+                "character": character.name,
+                "movie": conn.execute(text("SELECT * FROM movies WHERE movie_id = :id"), {"id":character.movie_id}).fetchone().title,
+                "gender": character.gender,
+                "top_conversations": cJson
+            }
+    if json is None:
+        raise HTTPException(status_code=404, detail="character not found.")
+    return json
+
     json = None
     # print(data.characters)
 
@@ -119,6 +151,37 @@ def list_characters(
     number of results to skip before returning results.
     """
 
+    metadata = MetaData()
+    characters = Table("characters", metadata, autoload_with=db.engine)
+    movies = Table("movies", metadata, autoload_with=db.engine)
+    lines = Table("lines", metadata, autoload_with=db.engine)   # used to calculate the number of lines
+
+    
+    if sort == character_sort_options.character:
+        s = characters.c.name
+    elif sort == character_sort_options.movie:
+        s = movies.c.title
+    elif sort == character_sort_options.number_of_lines:
+        s = desc("line_count")
+    query = characters.join(lines, characters.c.character_id == lines.c.character_id).join(movies, characters.c.movie_id == movies.c.movie_id).select().with_only_columns(characters.c.character_id, characters.c.name, characters.c.movie_id, func.count(lines.c.line_id).label("line_count"), movies.c.title).group_by(characters.c.character_id, movies.c.title)
+    if name != "":
+        query = query.where(characters.c.name.ilike(f"%{name}%"))
+
+    query = query.order_by(s, characters.c.character_id).limit(limit).offset(offset)
+    
+    with db.engine.connect() as conn:
+        result = conn.execute(query).fetchall()
+        json = []
+        for row in result:
+            cur = {
+                "character_id": row.character_id,
+                "character": row.name,
+                "movie": row.title,
+                "number_of_lines": row.line_count
+            }
+            json.append(cur)
+
+    return json
     # filter out
     if name != "":
       charList = [character for character in db.characters.values() if name.upper() in character.name]

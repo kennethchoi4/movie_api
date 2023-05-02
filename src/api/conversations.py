@@ -3,6 +3,7 @@ from src import database as db
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime
+from sqlalchemy import *
 
 
 # FastAPI is inferring what the request body should look like
@@ -58,6 +59,41 @@ def add_conversation(movie_id: int, conversation: ConversationJson):
     # 6. Create the lines
     # 7. Return the conversation id
 
+    metadata = MetaData()
+    convos = Table('conversations', metadata, autoload_with=db.engine)
+    lines = Table('lines', metadata, autoload_with=db.engine)
+
+    with db.engine.begin() as conn:
+        
+        # check 1 - movie exists
+        c1 = conn.execute(text("SELECT * FROM movies WHERE movie_id = :id"), {"id":movie_id}).fetchone()
+        if c1 is None:
+            raise HTTPException(status_code=404, detail="movie not found.")
+        
+        # check 2 - characters exist and are part of the movie
+        c2 = conn.execute(text("SELECT * FROM characters WHERE character_id = :id AND movie_id = :movie_id"), {"id":conversation.character_1_id, "movie_id":movie_id}).fetchone()
+        c3 = conn.execute(text("SELECT * FROM characters WHERE character_id = :id AND movie_id = :movie_id"), {"id": conversation.character_2_id, "movie_id":movie_id}).fetchone()
+        if c2 is None or c3 is None:
+            raise HTTPException(status_code=400, detail="characters not in movie.")
+        
+        # check 3 - characters are not the same
+        if conversation.character_1_id == conversation.character_2_id:
+            raise HTTPException(status_code=400, detail="characters are the same.")
+        
+        # check 4 - lines match the characters
+        for line in conversation.lines:
+            if line.character_id != conversation.character_1_id and line.character_id != conversation.character_2_id:
+                raise HTTPException(status_code=400, detail="line character id does not match given characters.")
+            
+        # create the conversation
+        convo_id = conn.execute(text("SELECT MAX(conversation_id) FROM conversations")).fetchone()[0] + 1
+        conn.execute(convos.insert().values(conversation_id=convo_id, character1_id=conversation.character_1_id, character2_id=conversation.character_2_id, movie_id=movie_id))
+
+        # create and add the lines
+        for s, line in enumerate(conversation.lines):
+            line_id = conn.execute(text("SELECT MAX(line_id) FROM lines")).fetchone()[0] + 1
+            conn.execute(lines.insert().values(line_id=line_id, character_id=line.character_id, movie_id=movie_id, conversation_id=convo_id, line_sort=s, line_text=line.line_text))
+    return convo_id
     # checking that the movie exists
     if movie_id not in db.movies:
         raise HTTPException(status_code=404, detail="movie not found.")

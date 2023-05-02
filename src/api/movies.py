@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from enum import Enum
 from src import database as db
+from sqlalchemy import *
 from fastapi.params import Query
 
 router = APIRouter()
@@ -25,6 +26,27 @@ def get_movie(movie_id: int):
     """
 
     json = None
+    with db.engine.connect() as conn:
+        movie = conn.execute(text("SELECT * FROM movies WHERE movie_id = :id"), {"id":movie_id}).fetchone()
+        if movie:
+            cs = conn.execute(text("SELECT c.*, COUNT(*) line_count FROM characters AS c JOIN lines AS l ON c.character_id = l.character_id WHERE c.movie_id = :id GROUP BY c.character_id ORDER BY line_count DESC"), {"id":movie_id}).fetchmany(5)
+            topCs = []
+            for c in cs:
+                topCs.append({
+                    "character_id": c.character_id,
+                    "character": c.name,
+                    "num_lines": c.line_count
+                })
+            
+            json = {
+                "movie_id": movie_id,
+                "title": movie.title,
+                "top_characters": topCs
+            }
+
+    if json is None:
+        raise HTTPException(status_code=404, detail="movie not found.")
+    return json        
     if movie_id in db.movies:
         chars = []
         
@@ -89,6 +111,37 @@ def list_movies(
     maximum number of results to return. The `offset` query parameter specifies the
     number of results to skip before returning results.
     """
+    metadata = MetaData()
+    movies = Table('movies', metadata, autoload_with=db.engine)
+    if sort == movie_sort_options.movie_title:
+        s = movies.columns.title
+    elif sort == movie_sort_options.year:
+        s = movies.columns.year
+    elif sort == movie_sort_options.rating:
+        s = desc(movies.columns.imdb_rating)
+    else:
+        s = movies.columns.title
+    
+    query = select(movies)
+
+    if name != "":
+        query = query.where(movies.c.title.ilike(f"%{name}%"))
+
+    query = query.order_by(s, movies.c.movie_id).limit(limit).offset(offset)
+
+    json = []
+    with db.engine.connect() as conn:
+        result = conn.execute(query)
+        for row in result:
+            json.append({
+                "movie_id": row.movie_id,
+                "movie_title": row.title,
+                "year": row.year,
+                "imdb_rating": row.imdb_rating,
+                "imdb_votes": row.imdb_votes
+            })
+    return json
+    
     # filtering out based on the name 
     if name != "":
         movList = [movie for movie in db.movies.values() if name in movie.title]

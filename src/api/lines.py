@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from enum import Enum 
 from src import database as db
 from typing import *
+from sqlalchemy import *
 
 router = APIRouter()
 
@@ -28,6 +29,24 @@ def get_lines(conversation_id: int):
     """
 
     json = None
+
+    with db.engine.connect() as conn:
+        convo = conn.execute(text("SELECT * FROM conversations WHERE conversation_id = :id"), {"id":conversation_id}).fetchone()
+        if convo:
+            lines = conn.execute(text("SELECT l.*, c.name FROM lines AS l JOIN characters AS c ON l.character_id = c.character_id WHERE l.conversation_id = :id ORDER BY line_sort"), {"id":conversation_id}).fetchall()
+            json = {
+                "conversation_id": conversation_id,
+                "title": conn.execute(text("SELECT title FROM movies WHERE movie_id = :id"), {"id":convo.movie_id}).fetchone().title,
+                "lines": [{
+                    "name": line.name,
+                    "line_text": line.line_text
+                } for line in lines]
+            }
+    
+    if json is None:
+        raise HTTPException(status_code=404, detail="conversation not found.")
+
+    return json
 
     if conversation_id in db.conversations:
 
@@ -66,6 +85,29 @@ def get_character_convos(name: str):
     * 'line_count': how many lines the character had in the conversation
     * 'other_charcter': the name of the other character they are talking to
     """
+    jsons = []
+    name = name.upper()
+    with db.engine.connect() as conn:
+        chars = conn.execute(text("SELECT * FROM characters WHERE name = :name"), {"name":name}).fetchall()
+        if chars != []:
+            for char in chars:
+                convos = conn.execute(text("SELECT * FROM conversations WHERE character1_id = :id OR character2_id = :id"), {"id":char.character_id}).fetchall()
+                json = {
+                    "name": name,
+                    "character_id": char.character_id,
+                    "conversation_count": len(convos),
+                    "conversations": [{
+                        "title": conn.execute(text("SELECT title FROM movies WHERE movie_id = :id"), {"id":convo.movie_id}).fetchone().title,
+                        "line_count": conn.execute(text("SELECT COUNT(*) FROM lines AS l WHERE l.character_id = :character1_id AND l.conversation_id = :conversation_id"), {"character1_id": convo.character1_id, "conversation_id": convo.conversation_id}).fetchone()[0] if convo.character1_id == char.character_id else conn.execute(text("SELECT COUNT(*) FROM lines AS l WHERE l.character_id = :character2_id AND l.conversation_id = :conversation_id"),{"character2_id": convo.character2_id, "conversation_id": convo.conversation_id}).fetchone()[0],
+                        "other_character": conn.execute(text("SELECT name FROM characters WHERE character_id = :id"), {"id":convo.character2_id if convo.character1_id == char.character_id else convo.character1_id}).fetchone().name
+                    } for convo in convos]
+                }
+                jsons.append(json)
+    
+    if jsons == []:
+        raise HTTPException(status_code=404, detail="character not found.")
+    
+    return jsons
     jsons = []
 
     name = name.upper()     # turn the name into all caps in order to match the datab
@@ -140,7 +182,41 @@ def list_conversations(
     * 'title' - alphabetically sorted 
     * 'conversation_id' sorted based on conversation id's
     """
+    json = None
+    metadata = MetaData()
+    conversations = Table("conversations", metadata, autoload_with=db.engine)
+    lines = Table("lines", metadata, autoload_with=db.engine)
+    movies = Table("movies", metadata, autoload_with=db.engine)
 
+
+    query = conversations.join(movies, conversations.c.movie_id == movies.c.movie_id).join(lines, conversations.c.conversation_id == lines.c.conversation_id).select().with_only_columns(conversations.c.conversation_id, movies.c.title, conversations.c.character1_id, conversations.c.character2_id, func.count(lines.c.line_id).label("line_count"))
+
+    query = query.group_by(conversations.c.conversation_id, movies.c.title, conversations.c.character1_id, conversations.c.character2_id)
+    if count is not None:
+        query = query.having(func.count(lines.c.line_id) >= count)
+
+    if sort == conversation_sort_options.conversation_id:
+        query = query.order_by(conversations.c.conversation_id).limit(limit).offset(offset)
+    elif sort == conversation_sort_options.title: 
+        query = query.order_by(movies.c.title).limit(limit).offset(offset)
+    elif sort == conversation_sort_options.line_count:
+        query = query.order_by(desc("line_count")).limit(limit).offset(offset)
+
+    
+
+    with db.engine.connect() as conn:
+        print(query)
+        convos = conn.execute(query).fetchall()
+        json = [{
+            "conversation_id": convo.conversation_id,
+            "title": convo.title,
+            "character1": conn.execute(text("SELECT name FROM characters WHERE character_id = :id"), {"id": convo.character1_id}).fetchone().name,
+            "character2": conn.execute(text("SELECT name FROM characters WHERE character_id = :id"), {"id": convo.character2_id}).fetchone().name,
+            "line_count": convo[4]
+        } for convo in convos]
+
+
+    return json
     if count:
         convos = [convo for convo in db.conversations.values() if convo.lineCount >= count]
     else:
